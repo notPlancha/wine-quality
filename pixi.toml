@@ -1,0 +1,15 @@
+[project]
+channels = ["conda-forge"]
+description = "Add a short description here"
+name = "projeto-ai"
+platforms = ["linux-64"]
+version = "0.1.0"
+
+[tasks]
+
+[dependencies]
+jupyter = ">=1.1.1,<2"
+python = ">=3.12.5,<4"
+pyprojroot = ">=0.3.0,<0.4"
+pandas = ">=2.2.2,<3"
+hiplot = ">=0.1.33,<0.2"
