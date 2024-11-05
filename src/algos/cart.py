@@ -36,7 +36,24 @@ no significant decrease in impurity was possible, then t was not split and becam
 
 3. 
 The class character of a terminal node was determined by the plurality rule.
-pag 31.
+
+tldr:
+The four elements needed in the initial tree growing procedure were
+1. A set Q of binary questions of the form {Is x ∈ A?}, A ⊂ X
+2. A goodness of split criterion φ(s, t) that can be evaluated for any split s of any node t
+3. A stop-splitting rule
+4. A rule for assigning every terminal node to a class
+
+the split selected is the one that maximazes φ.
+
+The standardized set of questions Q is defined as follows:
+- Each split depends on the value of only a single variable m.
+- If the variable m is ordered or numerical, Q includes all questions in the form "Is x_m <= c" 
+for all values c in the variable m 
+(for example, if pH are 1, 2, 3, 4, the questions in Q are "is pH <= 1", "is pH <= 2", etc)
+- If the variable is categorical, the Q includes all questions in "is it 1, is it 2, etc"
+
+stopped at 2.4.2 The Splitting and Stop-Splitting Rule (o livro esta no droå)
 """
 class CART(Model):
   pass
