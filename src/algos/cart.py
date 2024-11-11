@@ -1,16 +1,3 @@
-from abc import ABC, abstractmethod
-
-class Model(ABC):
-  def __init__(self):
-    self.trained: bool = False
-  @abstractmethod
-  def train(self):
-    self.trained = True
-  @abstractmethod
-  def fit(self):
-    assert self.trained
-
-
 """
 Tree structured classifiers, or, more correctly, binary tree structured classifiers, are constructed by
 repeated splits of subsets of X into two descendant subsets, beginning with X itself.

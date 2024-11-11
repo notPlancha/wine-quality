@@ -1,3 +1,7 @@
+temp.*
+db/*
+temp/*
+
 data/*
 !data/wine.csv
 
