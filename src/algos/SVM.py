@@ -1,67 +1,81 @@
 import numpy as np
-from cvxopt import matrix, solvers
-from algos.baseline import Baseline
+import pandas as pd
+if __name__ != "__main__":
+  from algos.baseline import Model
+else:
+  from baseline import Model
+from scipy.optimize import minimize
 
+class HardMarginSVM(Model):
+  # https://link.springer.com/article/10.1007/s10462-018-9614-6
+  """
+  An infinite number of classifiers
+  can be drawn for the
+  given data but SVM finds the
+  classifier with largest gap
+  between support vectors.
+  not allow mis-classification errors,
+  that's why it is known as hard margin SVM
+  """
+  #
 
-class SVR(Baseline):
-
-  def __init__(self, C=1.0, epsilon=0.1, gamma=0.1):
-    self.C = C
-    self.epsilon = epsilon
-    self.gamma = gamma
+  def __init__(self):
     super().__init__()
+    self.w:pd.Series  = None
 
-  def rbf_kernel(self, X1, X2):
-    # RBF kernel between two matrices
-    sq_dists = (
-        np.sum(X1**2, axis=1).reshape(-1, 1)
-        + np.sum(X2**2, axis=1)
-        - 2 * np.dot(X1, X2.T)
-    )
-    return np.exp(-self.gamma * sq_dists)
+  def fit(self,input: pd.DataFrame, target: pd.Series, w0: pd.Series | None = None):
+    if w0 is None:
+      w0 = np.zeros(input.shape[1]) # pd.Series(np.zeros(input.shape[1]))
+    # 1/2 * ||w||^2
+    objective = lambda w: (w @ w)/2
+    # y_i * (w^T x_i) >= 1 for all i == -(y_i * (w^T x_i)) + 1 <= 0
+    constraints = [
+      {"type": "ineq", "fun": lambda w: -(target[i] * (input.iloc[i] @ w)) + 1}
+      for i in range(len(input))
+    ]
+    # minimize 1/2 * ||w||^2
+    result = minimize(objective, w0, constraints=constraints)
+    self.w = pd.Series(result.x)
+    # add bias term
+    input = input.assign(bias=1) 
+    
 
-  def fit(self, X, y):
-    n_samples = X.shape[0]
-
-    # Compute RBF kernel
-    K = self.rbf_kernel(X, X)
-
-    # Create matrices for quadratic optimization
-    P = matrix(np.block([[K, -K], [-K, K]]))
-    q = matrix(self.epsilon + np.hstack([y, -y]))
-
-    G = matrix(np.block([[-np.eye(2 * n_samples)], [np.eye(2 * n_samples)]]))
-    h = matrix(np.hstack([np.zeros(2 * n_samples), self.C * np.ones(2 * n_samples)]))
-
-    A = matrix(np.ones((1, 2 * n_samples)))
-    b = matrix(np.zeros(1))
-
-    # Solve the optimization problem
-    sol = solvers.qp(P, q, G, h, A, b)
-    lambdas = np.array(sol["x"]).flatten()
-
-    # Dual coefficients
-    self.alpha = lambdas[:n_samples] - lambdas[n_samples:]
-    self.X_train = X
-    self.y_train = y
-
-  def predict(self, X):
-    # Prediction based on trained data and RBF kernel
-    K_test = self.rbf_kernel(X, self.X_train)
-    return np.dot(K_test, self.alpha) + np.mean(
-        self.y_train - np.dot(self.rbf_kernel(self.X_train, self.X_train), self.alpha)
-    )
-
+    super().fit()
+    
 if __name__ == "__main__":
-  from sklearn.datasets import make_regression
-  from sklearn.model_selection import train_test_split
-  from sklearn.metrics import mean_squared_error
+  # test if     input = input.assign(bias=1)  works
+  input = pd.DataFrame({"a": [1, 2, 3]})
+  print(input)
+  print(input.assign(bias=1))
+  print(input) # should be the same as the original input
+  print(pd.Series(np.zeros(input.shape[1])))
 
-  X, y = make_regression(n_samples=100, n_features=1, noise=0.1)
-  X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3)
+  # Define two vectors
+  a = np.array([-1, 2, 3])
+  b = np.array([4, 5, 6])
 
-  svr = SVR(C=1.0, epsilon=0.1, gamma=0.1)
-  svr.fit(X_train, y_train)
-  y_pred = svr.predict(X_test)
+  # Compute the dot product using @
+  dot_product = a @ b
+  print(a @ b)
+  print(np.linalg.norm(a)**2)
+  print(a @ a)
 
-  print("MSE:", mean_squared_error(y_test, y_pred))
+  # test  constraint = lambda w: target * (input @ w)
+  input = pd.DataFrame({"a": [1, 2, 3], "b": [4, 5, 6]})
+  target = pd.Series([1, -1, 1])
+  w = np.array([1, 1])
+  print(input @ w)
+  print(target * (input @ w))
+
+  def objective(x):
+    return x[0] ** 2 + x[1] ** 2
+
+  def constraint(x):
+    return -(x[0] + x[1]) + 1  # This makes the inequality "<= 0"
+
+  cons = {'type': 'ineq', 'fun': constraint}
+
+  x0 = [0, 0]  # Initial guess
+  res = minimize(objective, x0, constraints=cons)
+
+  print(res)
