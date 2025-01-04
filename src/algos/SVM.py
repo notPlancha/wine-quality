@@ -23,59 +23,44 @@ class HardMarginSVM(Model):
     super().__init__()
     self.w:pd.Series  = None
 
-  def fit(self,input: pd.DataFrame, target: pd.Series, w0: pd.Series | None = None):
+  def fit(self,input: pd.DataFrame, target: pd.Series, w0: pd.Series | np.ndarray | None = None):
+    # target ∈ {-1, 1}
     if w0 is None:
       w0 = np.zeros(input.shape[1]) # pd.Series(np.zeros(input.shape[1]))
-    # 1/2 * ||w||^2
+
+    # objective: 1/2 * ||w||^2
     objective = lambda w: (w @ w)/2
-    # y_i * (w^T x_i) >= 1 for all i == -(y_i * (w^T x_i)) + 1 <= 0
+    # add bias term
+    input = input.assign(bias=1)
+    w0 = np.append(w0, 0)
+
+    # ∀i: y_i * (w^T x_i) >= 1  == -(y_i * (w^T x_i)) + 1 <= 0 
     constraints = [
       {"type": "ineq", "fun": lambda w: -(target[i] * (input.iloc[i] @ w)) + 1}
       for i in range(len(input))
     ]
-    # minimize 1/2 * ||w||^2
-    result = minimize(objective, w0, constraints=constraints)
+    # minimize objective
+    # TODO: THE MAIN PROBLEM IS THAT THE OPTIMIZER IS FINISHING AFTER 1 ITERATION FSR
+    result = ic(minimize(objective, w0, constraints=constraints))
+    ic(result.success)
+    ic(result.fun)
     self.w = pd.Series(result.x)
-    # add bias term
-    input = input.assign(bias=1) 
     
-
     super().fit()
+  def predict(self, input: pd.DataFrame) -> pd.Series:
+    super().predict()
+    # h(x) = sign(w^T x)
+    def sign(x):
+      return 1 if x >= 0 else -1
     
+
 if __name__ == "__main__":
-  # test if     input = input.assign(bias=1)  works
-  input = pd.DataFrame({"a": [1, 2, 3]})
-  print(input)
-  print(input.assign(bias=1))
-  print(input) # should be the same as the original input
-  print(pd.Series(np.zeros(input.shape[1])))
-
-  # Define two vectors
-  a = np.array([-1, 2, 3])
-  b = np.array([4, 5, 6])
-
-  # Compute the dot product using @
-  dot_product = a @ b
-  print(a @ b)
-  print(np.linalg.norm(a)**2)
-  print(a @ a)
-
-  # test  constraint = lambda w: target * (input @ w)
-  input = pd.DataFrame({"a": [1, 2, 3], "b": [4, 5, 6]})
-  target = pd.Series([1, -1, 1])
-  w = np.array([1, 1])
-  print(input @ w)
-  print(target * (input @ w))
-
-  def objective(x):
-    return x[0] ** 2 + x[1] ** 2
-
-  def constraint(x):
-    return -(x[0] + x[1]) + 1  # This makes the inequality "<= 0"
-
-  cons = {'type': 'ineq', 'fun': constraint}
-
-  x0 = [0, 0]  # Initial guess
-  res = minimize(objective, x0, constraints=cons)
-
-  print(res)
+  from sklearn.datasets import make_classification
+  from icecream import ic
+  X, y = make_classification()
+  # change y to {-1, 1}
+  y = pd.Series(y).apply(lambda x: 1 if x == 1 else -1)
+  model = HardMarginSVM()
+  model.fit(pd.DataFrame(X), pd.Series(y))
+  ic(model.w)
+  ic(model.predict(pd.DataFrame(X)))
