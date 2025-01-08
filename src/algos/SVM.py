@@ -21,40 +21,49 @@ class HardMarginSVM(Model):
 
   def __init__(self):
     super().__init__()
-    self.w:pd.Series  = None
+    self.w: pd.Series  = None
 
-  def fit(self,input: pd.DataFrame, target: pd.Series, w0: pd.Series | np.ndarray | None = None):
+  def fit(self, input: pd.DataFrame, target: pd.Series, w0: pd.Series | np.ndarray | None = None):
     # target ∈ {-1, 1}
     if w0 is None:
       w0 = np.zeros(input.shape[1]) # pd.Series(np.zeros(input.shape[1]))
 
-    # objective: 1/2 * ||w||^2
-    objective = lambda w: (w @ w)/2
+    # objective: minimize_w,b: 1/2 * ||w||^2
+    def objective(theta):
+      w = theta[:-1]
+      return 0.5 * np.dot(w, w)
+    
+    # s.t. y_i * (w x_i + b) >= 1
+    def constraint(theta, i):
+      w, b = theta[:-1], theta[-1]
+      return target[i] * (np.dot(w, input.iloc[i]) + b) - 1
     # add bias term
-    input = input.assign(bias=1)
-    w0 = np.append(w0, 0)
+    # input = input.assign(bias=1)
+    theta = np.append(w0, 0)
 
-    # ∀i: y_i * (w^T x_i) >= 1  == -(y_i * (w^T x_i)) + 1 <= 0 
     constraints = [
-      {"type": "ineq", "fun": lambda w: -(target[i] * (input.iloc[i] @ w)) + 1}
+      {"type": "ineq", "fun": constraint, "args": (i, )}
       for i in range(len(input))
     ]
+    ic(constraints) 
+
     # minimize objective
-    # TODO: THE MAIN PROBLEM IS THAT THE OPTIMIZER IS FINISHING AFTER 1 ITERATION FSR
-    result = ic(minimize(objective, w0, constraints=constraints))
+    result = ic(minimize(objective, theta, constraints=constraints, method="SLSQP"))
     ic(result.success)
     ic(result.fun)
-    self.w = pd.Series(result.x)
-    
+    self.w = ic(pd.Series(result.x[:-1]))
+    self.b = ic(pd.Series(result.x[-1]))
     super().fit()
   def predict(self, input: pd.DataFrame) -> pd.Series:
     super().predict()
-    # h(x) = sign(w^T x)
-    def sign(x):
-      return 1 if x >= 0 else -1
-    
+    predictions = []
+    for i in range(input.shape[0]):
+        decision_value = np.dot(self.w, input.iloc[i]) + self.b
+        predictions.append(np.sign(decision_value))  # Append the result to the list
+    return pd.Series(predictions, index=input.index)
 
 if __name__ == "__main__":
+
   from sklearn.datasets import make_classification
   from icecream import ic
   X, y = make_classification()
@@ -62,5 +71,4 @@ if __name__ == "__main__":
   y = pd.Series(y).apply(lambda x: 1 if x == 1 else -1)
   model = HardMarginSVM()
   model.fit(pd.DataFrame(X), pd.Series(y))
-  ic(model.w)
   ic(model.predict(pd.DataFrame(X)))
