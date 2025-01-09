@@ -26,7 +26,7 @@ class HardMarginSVM(Model):
   def fit(self, input: pd.DataFrame, target: pd.Series, w0: pd.Series | np.ndarray | None = None):
     # target ∈ {-1, 1}
     if w0 is None:
-      w0 = np.zeros(input.shape[1]) # pd.Series(np.zeros(input.shape[1]))
+      w0 = np.zeros(input.shape[1]) # or pd.Series(np.zeros(input.shape[1]))
 
     # objective: minimize_w,b: 1/2 * ||w||^2
     def objective(theta):
@@ -45,21 +45,17 @@ class HardMarginSVM(Model):
       {"type": "ineq", "fun": constraint, "args": (i, )}
       for i in range(len(input))
     ]
-    ic(constraints) 
 
     # minimize objective
-    result = ic(minimize(objective, theta, constraints=constraints, method="SLSQP"))
-    ic(result.success)
-    ic(result.fun)
-    self.w = ic(pd.Series(result.x[:-1]))
-    self.b = ic(pd.Series(result.x[-1]))
+    result = minimize(objective, theta, constraints=constraints, method="SLSQP")
+    self.w = pd.Series(result.x[:-1])
+    self.b = pd.Series(result.x[-1])
     super().fit()
   def predict(self, input: pd.DataFrame) -> pd.Series:
     super().predict()
     predictions = []
     for i in range(input.shape[0]):
-        decision_value = np.dot(self.w, input.iloc[i]) + self.b
-        predictions.append(np.sign(decision_value))  # Append the result to the list
+      predictions.append(np.sign(np.dot(self.w, input.iloc[i]) + self.b))
     return pd.Series(predictions, index=input.index)
 
 if __name__ == "__main__":
