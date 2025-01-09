@@ -63,6 +63,11 @@ class HardMarginSVM(Model):
       predictions.append(np.sign(np.dot(self.w, input.iloc[i]) + self.b))
     return pd.Series(predictions, index=input.index)
 
+  def predict_proba(self, input: pd.DataFrame) -> pd.Series:
+    # https://www.researchgate.net/publication/2594015_Probabilistic_Outputs_for_Support_Vector_Machines_and_Comparisons_to_Regularized_Likelihood_Methods
+    super().predict()
+    
+
 
 if __name__ == "__main__":
 

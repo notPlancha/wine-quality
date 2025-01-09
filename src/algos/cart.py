@@ -42,5 +42,7 @@ for all values c in the variable m
 
 stopped at 2.4.2 The Splitting and Stop-Splitting Rule (o livro esta no droå)
 """
+from baseline import Model
+
 class CART(Model):
   pass

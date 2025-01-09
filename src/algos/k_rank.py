@@ -7,6 +7,7 @@ from SVM import HardMarginSVM
 
 class KRank(Model):
   """
+  https://link.springer.com/content/pdf/10.1007/3-540-44795-4_13.pdf
   One versus all except that k-1 binary classifiers are trained to rank ordinal categories
   """
 
@@ -33,15 +34,21 @@ class KRank(Model):
     return np.argmax(scores, axis=1)
 
 
-
 if __name__ == "__main__":
-    # Create a dummy dataset
-  X, y = make_classification(n_samples=100, n_features=20, n_classes=3, n_informative=3, n_clusters_per_class=1, random_state=42)
-  
+  # Create a dummy dataset
+  X, y = make_classification(
+      n_samples=100,
+      n_features=20,
+      n_classes=3,
+      n_informative=3,
+      n_clusters_per_class=1,
+      random_state=42,
+  )
+
   # Initialize and fit the KRank model
   krank = KRank()
   krank.fit(X, y)
-  
+
   # Make a prediction
   predictions = krank.predict(X)
   print("Predictions:", predictions)
