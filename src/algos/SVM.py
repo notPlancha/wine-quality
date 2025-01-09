@@ -1,3 +1,4 @@
+from warnings import warn
 import numpy as np
 import pandas as pd
 from baseline import Model
@@ -26,7 +27,6 @@ class HardMarginSVM(Model):
       features: pd.DataFrame,
       target: pd.Series,
       w0: pd.Series | np.ndarray | None = None,
-      gen_probs: bool = True,
   ):
     # target ∈ {-1, 1}
     if w0 is None:
@@ -56,17 +56,20 @@ class HardMarginSVM(Model):
     self.w = pd.Series(result.x[:-1])
     self.b = result.x[-1]
 
-    if gen_probs:
-      self.A, self.B = self.generate_A_B(self._get_decision_values(features), target, prior1=1, prior0=1)
+    self.A, self.B = self.generate_A_B(self._get_decision_values(features), target)
     super().fit()
 
   def predict(self, input: pd.DataFrame) -> pd.Series:
     super().predict()
-    decision_values = self._get_decision_values(input)
-    return pd.Series(np.sign(decision_values), index=input.index)
+    probabilities = self.predict_proba(input)
+    return pd.Series(np.where(probabilities >= 0.5, 1, -1), index=input.index)
 
   def predict_proba(self, input: pd.DataFrame) -> pd.Series:
+    """
+    Return the probability of 1
+    """
     # https://link.springer.com/article/10.1007/s10994-007-5018-6
+    input = pd.DataFrame(input)
     if not hasattr(self, "A") or not hasattr(self, "B"):
       raise AttributeError("Model not trained with probabilities")
     super().predict()
@@ -75,17 +78,21 @@ class HardMarginSVM(Model):
   
   def _get_decision_values(self, input: pd.DataFrame) -> pd.Series:
     # h(x) = sign(w^T x + b)
+    input = pd.DataFrame(input)
     return pd.Series(
         [np.dot(self.w, input.iloc[i]) + self.b for i in range(input.shape[0])],
-        index=input.index,
+        index=input.index
     )
   @staticmethod
-  def generate_A_B(deci, label, prior1, prior0) -> tuple[float, float]:
-    # https://www.csie.ntu.edu.tw/~cjlin/papers/plattprob.pdf
-    # Parameter setting
-    maxiter = 100
-    minstep=1e-10
-    sigma=1e-12
+  def generate_A_B(deci, label, maxiter=1000, minstep=1e-10, sigma=1e12) -> tuple[float, float]:
+    """
+    https://www.csie.ntu.edu.tw/~cjlin/papers/plattprob.pdf
+    Generate A and B for Platt scaling
+    :param deci: array of SVM decision values
+    :param label: array of booleans: is the example labeled +1?
+    """
+    prior0 = sum(label == -1)
+    prior1 = sum(label == 1)
     # Construct initial values: target support in array t
     #                           initial function value in fval
     hiTarget, loTarget = (prior1+1.0)/(prior1+2.0), 1/(prior0+2.0)
@@ -146,10 +153,10 @@ class HardMarginSVM(Model):
         else:
           stepsize /= 2
       if stepsize < minstep:
-        print("Line search fails")
+        warn("Line search fails")
         break
     if it >= maxiter:
-      print("Reaching maximum iterations")
+      warn("Reaching maximum iterations")
     return A, B
 if __name__ == "__main__":
 
@@ -167,7 +174,4 @@ if __name__ == "__main__":
   
   ic(predictions)
   ic(probabilities)
-  
-  # Verify alignment
-  alignment = (predictions == 1) == (probabilities >= 0.5)
-  ic(alignment.all())
+  ic(sum(predictions == y) / len(y))
