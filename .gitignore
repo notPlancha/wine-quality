@@ -1,6 +1,7 @@
 temp.*
 db/*
 temp/*
+*.pdf
 
 data/*
 !data/wine.csv

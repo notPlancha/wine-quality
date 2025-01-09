@@ -26,7 +26,7 @@ class KRank(Model):
       self.models.append(model)
     super().fit()
 
-  def predict(self, X):
+  def predict(self, X): # TODO fix
     super().predict()
     scores = np.zeros((X.shape[0], self.k[1]))
     for i, model in enumerate(self.models):
