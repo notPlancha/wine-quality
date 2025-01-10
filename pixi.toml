@@ -6,7 +6,7 @@ platforms = ["linux-64", "win-64", "osx-arm64"]
 version = "0.1.0"
 
 [tasks]
-format = "pyink --pyink-indentation 2 ."
+format = "pyink --pyink-indentation 2"
 
 [dependencies]
 jupyter = ">=1.1.1,<2"

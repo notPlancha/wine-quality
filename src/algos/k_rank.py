@@ -1,5 +1,4 @@
 import numpy as np
-import pandas as pd
 from sklearn.datasets import make_classification
 from baseline import Model
 from SVM import HardMarginSVM
@@ -17,7 +16,7 @@ class KRank(Model):
     self.classifiers: list = []
     self.k = None
 
-  def fit(self, X: pd.DataFrame, y: pd.Series):
+  def fit(self, X: np.ndarray, y: np.ndarray):
     self.k = (min(y), max(y) + 1)
     for i in range(*self.k):
       y_binary = np.array([1 if y_i > i else -1 for y_i in y])
@@ -26,14 +25,14 @@ class KRank(Model):
       self.classifiers.append(model)
     super().fit()
 
-  def predict(self, X: pd.DataFrame):
+  def predict(self, X: np.ndarray):
     # https://link.springer.com/content/pdf/10.1007/3-540-44795-4_13.pdf
     super().predict()
-    return np.array([self.predict_one(x[1]) for x in X.iterrows()])
+    return np.array([self.predict_one(x) for x in X])
   
-  def predict_one(self, x: pd.Series):
+  def predict_one(self, x: np.ndarray):
     ic(x, type(x))
-    probabilities: list[float] = [1 - ic(self.classifiers[0]).predict(pd.DataFrame([x]))]
+    probabilities: list[float] = [1 - ic(self.classifiers[0]).predict(np.array([x]))]
     return # CHECK probabilities
     for i in range(1, len(self.classifiers)):
       probabilities.append(
@@ -78,5 +77,5 @@ if __name__ == "__main__":
   # print krank json
   ic(krank.__dict__)
   ic(krank.classifiers[0].__dict__)
-  predictions = krank.predict(ic(pd.DataFrame(X)))
+  predictions = krank.predict(ic(X))
   print("Predictions:", predictions)

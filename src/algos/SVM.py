@@ -83,7 +83,7 @@ class HardMarginSVM(Model):
     return np.array([np.dot(self.w, input[i]) + self.b for i in range(input.shape[0])])
 
   @staticmethod
-  def generate_A_B(deci: np.ndarray, label: np.ndarray, maxiter=1000, minstep=1e-10, sigma=1e12) -> tuple[float, float]:
+  def generate_A_B(deci: np.ndarray, label: np.ndarray, maxiter=1000, minstep=1e-10, sigma=1e-12) -> tuple[float, float]:
     """
     https://www.csie.ntu.edu.tw/~cjlin/papers/plattprob.pdf
     Generate A and B for Platt scaling
