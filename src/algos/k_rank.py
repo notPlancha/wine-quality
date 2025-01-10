@@ -3,7 +3,7 @@ import pandas as pd
 from sklearn.datasets import make_classification
 from baseline import Model
 from SVM import HardMarginSVM
-
+from icecream import ic
 
 class KRank(Model):
   """
@@ -30,9 +30,10 @@ class KRank(Model):
     # https://link.springer.com/content/pdf/10.1007/3-540-44795-4_13.pdf
     super().predict()
     return np.array([self.predict_one(x[1]) for x in X.iterrows()])
-    
+  
   def predict_one(self, x: pd.Series):
-    probabilities = [1 - self.classifiers[0].predict(x)]
+    ic(x, type(x))
+    probabilities: list[float] = [1 - ic(self.classifiers[0]).predict(pd.DataFrame([x]))]
     return # CHECK probabilities
     for i in range(1, len(self.classifiers)):
       probabilities.append(
@@ -54,6 +55,8 @@ class KRank(Model):
     return pd.Series(predictions_per_observation, index=X.index)
   """
 if __name__ == "__main__":
+  from pickle import dump, load
+  import os
   # Create a dummy dataset
   X, y = make_classification(
       n_samples=100,
@@ -63,11 +66,17 @@ if __name__ == "__main__":
       n_clusters_per_class=1,
       random_state=42,
   )
-
-  # Initialize and fit the KRank model
-  krank = KRank()
-  krank.fit(X, y)
-
-  # Make a prediction
-  predictions = krank.predict(pd.DataFrame(X))
+  # cache
+  if os.path.exists("krank.pkl"):
+    with open("krank.pkl", "rb") as f:
+      krank = load(f)
+  else:
+    krank = KRank()
+    krank.fit(X, y)
+    with open("krank.pkl", "wb") as f:
+      dump(krank, f)
+  # print krank json
+  ic(krank.__dict__)
+  ic(krank.classifiers[0].__dict__)
+  predictions = krank.predict(ic(pd.DataFrame(X)))
   print("Predictions:", predictions)

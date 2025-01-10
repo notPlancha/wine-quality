@@ -25,6 +25,7 @@ pyink = ">=24.8.0,<25"
 cvxopt = ">=1.3.2,<2"
 icecream = ">=2.1.3,<3"
 ruff = ">=0.8.6,<0.9"
+typeguard = ">=4.4.1,<5"
 
 [pypi-dependencies]
 ucimlrepo = ">=0.0.7, <0.0.8"

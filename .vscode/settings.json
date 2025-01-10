@@ -1,3 +1,3 @@
 {
-  "python.defaultInterpreterPath": "C:\\Users\\ap9169\\wine-quality\\.pixi\\envs\\default\\python.exe"
+  "python.defaultInterpreterPath": "/workspaces/wine-quality/.pixi/envs/default/bin/python"
 }

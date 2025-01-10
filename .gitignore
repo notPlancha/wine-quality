@@ -2,6 +2,7 @@ temp.*
 db/*
 temp/*
 *.pdf
+*.pkl
 
 data/*
 !data/wine.csv

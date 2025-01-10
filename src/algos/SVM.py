@@ -4,7 +4,9 @@ import pandas as pd
 from baseline import Model
 from scipy.optimize import minimize
 from sklearn.linear_model import LogisticRegression
+from sklearn.datasets import load_breast_cancer
 from icecream import ic
+ic.configureOutput(includeContext=True)
 
 class HardMarginSVM(Model):
   # https://link.springer.com/article/10.1007/s10462-018-9614-6
@@ -17,34 +19,33 @@ class HardMarginSVM(Model):
   not allow mis-classification errors,
   that's why it is known as hard margin SVM
   """
-  w: pd.Series
-  b: float
-  A: float
-  B: float
+  w: np.ndarray
+  b: np.float64
+  A: np.float64
+  B: np.float64
 
   def fit(
       self,
-      features: pd.DataFrame,
-      target: pd.Series,
-      w0: pd.Series | np.ndarray | None = None,
+      features: np.ndarray,
+      target: np.ndarray,
+      w0: np.ndarray | None = None,
   ):
+    ic(features.shape, target.shape)
     # target ∈ {-1, 1}
     if w0 is None:
       w0 = np.zeros(features.shape[1])  # or pd.Series(np.zeros(input.shape[1]))
 
     # objective: minimize_w,b: 1/2 * ||w||^2
-    def objective(theta):
+    def objective(theta: np.ndarray) -> float:
       w = theta[:-1]
       return 0.5 * np.dot(w, w)
 
     # s.t. y_i * (w x_i + b) >= 1
-    def constraint(theta, i):
+    def constraint(theta: np.ndarray, i: int) -> float:
       w, b = theta[:-1], theta[-1]
-      # pd.DataFrame call is important in case input is a numpy array
-      return target[i] * (np.dot(w, pd.DataFrame(features).iloc[i] + b)) - 1 
+      return target[i] * (np.dot(w, features[i]) + b) - 1 
 
     # add bias term
-    # input = input.assign(bias=1)
     theta = np.append(w0, 0)
 
     constraints = [
@@ -53,38 +54,36 @@ class HardMarginSVM(Model):
 
     # minimize objective
     result = minimize(objective, theta, constraints=constraints, method="SLSQP")
-    self.w = pd.Series(result.x[:-1])
+    self.w = result.x[:-1]
     self.b = result.x[-1]
 
     self.A, self.B = self.generate_A_B(self._get_decision_values(features), target)
     super().fit()
 
-  def predict(self, input: pd.DataFrame) -> pd.Series:
+  def predict(self, input: np.ndarray) -> np.ndarray:
     super().predict()
     probabilities = self.predict_proba(input)
-    return pd.Series(np.where(probabilities >= 0.5, 1, -1), index=input.index)
+    return np.where(probabilities >= 0.5, 1, -1)
 
-  def predict_proba(self, input: pd.DataFrame) -> pd.Series:
+  def predict_proba(self, input: np.ndarray) -> np.ndarray:
     """
     Return the probability of 1
     """
     # https://link.springer.com/article/10.1007/s10994-007-5018-6
-    input = pd.DataFrame(input)
     if not hasattr(self, "A") or not hasattr(self, "B"):
       raise AttributeError("Model not trained with probabilities")
     super().predict()
+    ic(input.shape)
     decision_values = self._get_decision_values(input)
-    return pd.Series(1 / (1 + np.exp(self.A * decision_values + self.B)), index=input.index)
+    ic(decision_values.shape)
+    return 1 / (1 + np.exp(self.A * decision_values + self.B))
   
-  def _get_decision_values(self, input: pd.DataFrame) -> pd.Series:
+  def _get_decision_values(self, input: np.ndarray) -> np.ndarray:
     # h(x) = sign(w^T x + b)
-    input = pd.DataFrame(input)
-    return pd.Series(
-        [np.dot(self.w, input.iloc[i]) + self.b for i in range(input.shape[0])],
-        index=input.index
-    )
+    return np.array([np.dot(self.w, input[i]) + self.b for i in range(input.shape[0])])
+
   @staticmethod
-  def generate_A_B(deci, label, maxiter=1000, minstep=1e-10, sigma=1e12) -> tuple[float, float]:
+  def generate_A_B(deci: np.ndarray, label: np.ndarray, maxiter=1000, minstep=1e-10, sigma=1e12) -> tuple[float, float]:
     """
     https://www.csie.ntu.edu.tw/~cjlin/papers/plattprob.pdf
     Generate A and B for Platt scaling
@@ -158,20 +157,23 @@ class HardMarginSVM(Model):
     if it >= maxiter:
       warn("Reaching maximum iterations")
     return A, B
-if __name__ == "__main__":
 
-  from sklearn.datasets import make_classification
+if __name__ == "__main__":
+  from sklearn.datasets import load_breast_cancer
   from icecream import ic
   np.random.seed(0)
   
-  X, y = make_classification()
+  data = load_breast_cancer()
+  X, y = data.data, data.target
+  ic(X.shape, y.shape)
   # change y to {-1, 1}
-  y = pd.Series(y).apply(lambda x: 1 if x == 1 else -1)
+  y = np.where(y == 1, 1, -1)
   model = HardMarginSVM()
-  model.fit(pd.DataFrame(X), pd.Series(y))
-  predictions = model.predict(pd.DataFrame(X))
-  probabilities = model.predict_proba(pd.DataFrame(X))
-  
+  model.fit(X, y)
+  probabilities = model.predict_proba(X)
+  predictions = model.predict(X)
+  ic(model.__dict__)
   ic(predictions)
   ic(probabilities)
+  ic(probabilities[0])
   ic(sum(predictions == y) / len(y))
