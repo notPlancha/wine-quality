@@ -1,5 +1,5 @@
 import numpy as np
-from sklearn.datasets import make_classification
+from sklearn.datasets import fetch_openml
 from baseline import Model
 from SVM import HardMarginSVM
 from icecream import ic
@@ -27,54 +27,43 @@ class KRank(Model):
 
   def predict(self, X: np.ndarray):
     # https://link.springer.com/content/pdf/10.1007/3-540-44795-4_13.pdf
+    # P(k0) = 1 - P(y > k0 | x)
+    # P(ki) = P(y > ki-1 | x) * (1-P(y > ki | x)), 1 < i < k
+    # P(kk) = P(y > kk-1 | x)
     super().predict()
-    return np.array([self.predict_one(x) for x in X])
-  
-  def predict_one(self, x: np.ndarray):
-    probabilities: list[float] = [1 - self.classifiers[0].predict(np.array([x]))]
-    return # CHECK probabilities
-    for i in range(1, len(self.classifiers)):
-      probabilities.append(
-          self.classifiers[i - 1].predict(x) - self.classifiers[i].predict(x)
-      )
-  """
-  def predict(self, X): # TODO fix
-    # https://link.springer.com/content/pdf/10.1007/3-540-44795-4_13.pdf
-    super().predict()
-    predictions_per_model = []
-    for model in self.classifiers:
-      predictions_per_model.append(model.predict_proba(X))
-    probabilities = [1 - predictions_per_model[0]]
-    for i in range(1, len(predictions_per_model)):
-      probabilities.append(predictions_per_model[i-1] * (1 - predictions_per_model[i]))
-    probabilities.append(predictions_per_model[-1])
-    # assert len(probabilities) == len(self.classifiers) + 1
-    predictions_per_observation = np.argmax(probabilities, axis=0)
-    return pd.Series(predictions_per_observation, index=X.index)
-  """
+    predictions = []
+    for x in X:
+      # transform x to shape (1, n_features)
+      x = x.reshape(1, -1)
+      probs: list[np.float32] = []
+      probs.append(1 - self.classifiers[0].predict_proba(x)[0])
+      for i in range(self.k[0] + 1, self.k[1]):
+        probs.append(self.classifiers[i - self.k[0]].predict_proba(x)[0] * (1-probs[-1]))
+      probs.append(self.classifiers[-1].predict_proba(x)[0])
+      predictions.append(np.argmax(probs) + self.k[0])
+    return np.array(predictions, dtype=np.int32)
+
 if __name__ == "__main__":
   from pickle import dump, load
   import os
-  # Create a dummy dataset
-  X, y = make_classification(
-      n_samples=100,
-      n_features=20,
-      n_classes=3,
-      n_informative=3,
-      n_clusters_per_class=1,
-      random_state=42,
-  )
+  # Load the wine-quality dataset from UCI ML repository
+  data = fetch_openml(name='wine-quality-red', version=1)
+  X, y = data.data, data.target
+  X, y = np.array(X), np.array(y, dtype=np.int32)
+  ic(X, y, type(X), type(y), X.shape, y.shape)
   # cache
-  if os.path.exists("krank.pkl"):
-    with open("krank.pkl", "rb") as f:
-      krank = load(f)
-  else:
+  if not os.path.exists('krank.pkl'):
     krank = KRank()
     krank.fit(X, y)
-    with open("krank.pkl", "wb") as f:
+    with open('krank.pkl', 'wb') as f:
       dump(krank, f)
+  else:
+    with open('krank.pkl', 'rb') as f:
+      krank = load(f)
   # print krank json
   ic(krank.__dict__)
   ic(krank.classifiers[0].__dict__)
-  predictions = krank.predict(ic(X))
-  print("Predictions:", predictions)
+  predictions = krank.predict(X)
+  ic(predictions, predictions.shape)
+  
+  ic(np.mean(predictions == y))
