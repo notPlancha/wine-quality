@@ -31,8 +31,7 @@ class KRank(Model):
     return np.array([self.predict_one(x) for x in X])
   
   def predict_one(self, x: np.ndarray):
-    ic(x, type(x))
-    probabilities: list[float] = [1 - ic(self.classifiers[0]).predict(np.array([x]))]
+    probabilities: list[float] = [1 - self.classifiers[0].predict(np.array([x]))]
     return # CHECK probabilities
     for i in range(1, len(self.classifiers)):
       probabilities.append(

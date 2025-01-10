@@ -30,7 +30,6 @@ class HardMarginSVM(Model):
       target: np.ndarray,
       w0: np.ndarray | None = None,
   ):
-    ic(features.shape, target.shape)
     # target ∈ {-1, 1}
     if w0 is None:
       w0 = np.zeros(features.shape[1])  # or pd.Series(np.zeros(input.shape[1]))
@@ -73,9 +72,7 @@ class HardMarginSVM(Model):
     if not hasattr(self, "A") or not hasattr(self, "B"):
       raise AttributeError("Model not trained with probabilities")
     super().predict()
-    ic(input.shape)
     decision_values = self._get_decision_values(input)
-    ic(decision_values.shape)
     return 1 / (1 + np.exp(self.A * decision_values + self.B))
   
   def _get_decision_values(self, input: np.ndarray) -> np.ndarray:
@@ -162,10 +159,9 @@ if __name__ == "__main__":
   from sklearn.datasets import load_breast_cancer
   from icecream import ic
   np.random.seed(0)
-  
+
   data = load_breast_cancer()
   X, y = data.data, data.target
-  ic(X.shape, y.shape)
   # change y to {-1, 1}
   y = np.where(y == 1, 1, -1)
   model = HardMarginSVM()
