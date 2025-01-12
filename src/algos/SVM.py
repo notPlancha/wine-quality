@@ -30,7 +30,7 @@ class HardMarginSVM(Model):
       target: np.ndarray,
       w0: np.ndarray | None = None,
   ):
-    features = super.fit(features, target)
+    features = super().fit(features, target)
     # target ∈ {-1, 1}
     if w0 is None:
       w0 = np.zeros(features.shape[1])  # or pd.Series(np.zeros(input.shape[1]))
@@ -72,7 +72,7 @@ class HardMarginSVM(Model):
     # https://link.springer.com/article/10.1007/s10994-007-5018-6
     if not hasattr(self, "A") or not hasattr(self, "B"):
       raise AttributeError("Model not trained with probabilities")
-    super().predict()
+    input = super().predict(input)
     decision_values = self._get_decision_values(input)
     return 1 / (1 + np.exp(self.A * decision_values + self.B))
   
