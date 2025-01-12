@@ -5,7 +5,7 @@ temp/*
 *.pkl
 
 data/*
-!data/wine.csv
+!data/.gitkeep
 
 # pixi environments
 .pixi

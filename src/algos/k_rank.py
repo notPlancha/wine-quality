@@ -26,14 +26,12 @@ class KRank(Model):
       model = self.modelCall()
       model.fit(X, y_binary)
       self.classifiers[i] = model
-    super().fit()
 
   def predict(self, X: np.ndarray):
     # https://link.springer.com/content/pdf/10.1007/3-540-44795-4_13.pdf
     # P(k0) = 1 - P(y > k0 | x)
     # P(ki) = P(y > ki-1 | x) * (1-P(y > ki | x)), 1 < i < k
     # P(kk) = P(y > kk-1 | x)
-    super().predict()
     predictions = []
     for x in X:
       # transform x to shape (1, n_features)

@@ -30,6 +30,7 @@ class HardMarginSVM(Model):
       target: np.ndarray,
       w0: np.ndarray | None = None,
   ):
+    features = super.fit(features, target)
     # target ∈ {-1, 1}
     if w0 is None:
       w0 = np.zeros(features.shape[1])  # or pd.Series(np.zeros(input.shape[1]))
@@ -57,10 +58,10 @@ class HardMarginSVM(Model):
     self.b = result.x[-1]
 
     self.A, self.B = self.generate_A_B(self._get_decision_values(features), target)
-    super().fit()
 
   def predict(self, input: np.ndarray) -> np.ndarray:
-    super().predict()
+    
+    input = super().predict(input)
     probabilities = self.predict_proba(input)
     return np.where(probabilities >= 0.5, 1, -1)
 

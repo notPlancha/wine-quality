@@ -1,48 +1,133 @@
-"""
-Tree structured classifiers, or, more correctly, binary tree structured classifiers, are constructed by
-repeated splits of subsets of X into two descendant subsets, beginning with X itself.
-
-The entire construction of a tree, then, revolves around three elements:
-1. The selection of the splits
-2. The decisions when to declare a node terminal or to continue splitting it
-3. The assignment of each terminal node to a class
-
-1. 
-This idea of finding splits of nodes so as to give “purer” descendant nodes was implemented in this
-way: (for example 3 classes) (t is the node)
-1. Define the node proportions of the target p(1|t), p(2|t), p(3|t)
-2. Define a measure i(t) of the impurity of the node as a function φ
-such that φ(1/3,1/3,1/3) = maximum, φ (1, 0, 0) = 0, φ (0, 1, 0) = 0, φ (0,0, 1) = 0 (for 3 classes for example).
-How pure a node is is defined by how little i(t) is
-3. Define a candidate set S of binary splits s at each node.
-
-
-2. 
-To terminate the tree growing, a heuristic rule was designed. When a node t was reached such that
-no significant decrease in impurity was possible, then t was not split and became a terminal node.
-
-3. 
-The class character of a terminal node was determined by the plurality rule.
-
-tldr:
-The four elements needed in the initial tree growing procedure were
-1. A set Q of binary questions of the form {Is x ∈ A?}, A ⊂ X
-2. A goodness of split criterion φ(s, t) that can be evaluated for any split s of any node t
-3. A stop-splitting rule
-4. A rule for assigning every terminal node to a class
-
-the split selected is the one that maximazes φ.
-
-The standardized set of questions Q is defined as follows:
-- Each split depends on the value of only a single variable m.
-- If the variable m is ordered or numerical, Q includes all questions in the form "Is x_m <= c" 
-for all values c in the variable m 
-(for example, if pH are 1, 2, 3, 4, the questions in Q are "is pH <= 1", "is pH <= 2", etc)
-- If the variable is categorical, the Q includes all questions in "is it 1, is it 2, etc"
-
-stopped at 2.4.2 The Splitting and Stop-Splitting Rule (o livro esta no droå)
-"""
 from baseline import Model
+import numpy as np
+from typing import Optional, Tuple
+from icecream import ic
+
+class Node:
+    """A Node with a constructor"""
+    def __init__(self, feature_index: Optional[int] = None, threshold: Optional[float] = None,
+                 left: Optional['Node'] = None, right: Optional['Node'] = None, value: Optional[float] = None):
+        self.feature_index = feature_index  # Which feature index is used to split data
+        self.threshold = threshold          # Threshold value for the split
+        self.left = left                    # Left child node
+        self.right = right                  # Right child node
+        self.value = value                  # If node is leaf, store the predicted value(mean) in value
 
 class CART(Model):
-  pass
+    
+    def __init__(self, max_depth: int = 10, min_samples_split: int = 2, min_samples_leaf: int = 1):
+        """ Constructor """
+        self.max_depth = max_depth  # Maximum depth of tree, prevents overfitting
+        self.min_samples_split = min_samples_split # Minimum number of samples to split a node
+        self.min_samples_leaf = min_samples_leaf # Minimum number of samples required in a leaf
+        self.root = None # Root of tree
+
+    def fit(self, X: np.ndarray, y: np.ndarray) -> None:
+        X = super().fit(X, y)
+        self.n_features = X.shape[1]  # Store number of features
+        self.root = self._grow_tree(X, y)
+
+    def _grow_tree(self, X: np.ndarray, y: np.ndarray, depth: int = 0) -> Node:
+        """ Recursively grow the tree by splitting the data."""
+        n_samples, n_features = X.shape
+        
+        # Check stopping criteria
+        if (depth >= self.max_depth or 
+            n_samples < self.min_samples_split or 
+            len(np.unique(y)) == 1):
+            return Node(value=np.mean(y))
+        
+        # Find the best split
+        best_feature, best_threshold = self._find_best_split(X, y)
+        
+        # If no valid split is found, create a leaf node
+        if best_feature is None:
+            return Node(value=np.mean(y))
+        
+        # Create the split masks
+        left_mask = X[:, best_feature] <= best_threshold
+        
+        # Split the data
+        X_left, y_left = X[left_mask], y[left_mask]
+        X_right, y_right = X[~left_mask], y[~left_mask]
+        
+        # Check minimum samples in leaves
+        if len(y_left) < self.min_samples_leaf or len(y_right) < self.min_samples_leaf:
+            return Node(value=np.mean(y))
+        
+        # Create node and recursively grow children
+        left_child = self._grow_tree(X_left, y_left, depth + 1)
+        right_child = self._grow_tree(X_right, y_right, depth + 1)
+        
+        return Node(
+            feature_index=best_feature,
+            threshold=best_threshold,
+            left=left_child,
+            right=right_child
+        )
+        
+    def _calculate_mse(self, y: np.ndarray) -> float:
+        """ Calculate the Mean Squared Error (MSE) for a node."""
+        if len(y) == 0:
+            return 0.0
+        return np.mean((y - np.mean(y)) ** 2)
+
+    def _find_best_split(self, X: np.ndarray, y: np.ndarray) -> Tuple[Optional[int], Optional[float]]:
+        """ Find the best split that minimizes the weighted MSE."""
+        best_mse = float('inf')
+        best_feature = None
+        best_threshold = None
+        n_samples = len(y)
+        
+        # Iterate through all features
+        for feature_idx in range(X.shape[1]):
+            feature_values = X[:, feature_idx]
+            thresholds = np.unique(feature_values)
+            
+            # Try all possible thresholds
+            for threshold in thresholds:
+                # Create masks for the split
+                left_mask = feature_values <= threshold
+                right_mask = ~left_mask
+                
+                # Skip if split creates empty nodes
+                if not left_mask.any() or not right_mask.any():
+                    continue
+                
+                # Get the split data
+                y_left = y[left_mask]
+                y_right = y[right_mask]
+                
+                # Calculate the weighted MSE
+                n_left, n_right = len(y_left), len(y_right)
+                mse = (n_left * self._calculate_mse(y_left) + 
+                      n_right * self._calculate_mse(y_right)) / n_samples
+                
+                # Update best split if this is better
+                if mse < best_mse:
+                    best_mse = mse
+                    best_feature = feature_idx
+                    best_threshold = threshold
+        
+        return best_feature, best_threshold
+
+    def predict(self, X: np.ndarray) -> np.ndarray:
+        X = super().predict(X)
+        return np.array([self._traverse_tree(x, self.root) for x in X])
+
+    def _traverse_tree(self, x: np.ndarray, node: Node) -> float:
+        """Traverse the tree to make a prediction for a single sample."""
+        if node.value is not None:
+            return node.value
+        
+        if x[node.feature_index] <= node.threshold:
+            return self._traverse_tree(x, node.left)
+        return self._traverse_tree(x, node.right)
+      
+if __name__ == '__main__':
+    # Test the CART class
+    from sklearn.datasets import load_boston
+    X, y = load_boston(return_X_y=True)
+    model = RegressionCART()
+    model.fit(X, y)
+    print(model.root)  # Should print the root node of the tree
