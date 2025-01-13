@@ -7,19 +7,18 @@ class MLR_GR(Model):
   theta: np.ndarray
   def fit(self, X, y, learning_rate=0.01, iterations=1000, tol=0.0001):
     X = super().fit(X, y)
-    ic(X, y)
+    X = np.hstack([np.ones((X.shape[0], 1)), X]) # add bias term (theta_0)
     m, n = X.shape  # Number of observations and features
-    self.theta = np.zeros(n)  # Initialize weights
+    self.theta = np.zeros(n)  # Initialize weights, shape (n, 1)
     for i in range(iterations):
       gradient = (2 / m) * (X.T @ ((X @ self.theta) - y))  #  gradient
       self.theta = self.theta - learning_rate * gradient  # Update weights
-
       if np.linalg.norm(gradient) < tol:
         ic(f"Converged at iteration {i}")
         break
   def predict(self, X):
     X = super().predict(X)
-    ic(X, self.theta)
+    X = np.hstack([np.ones((X.shape[0], 1)), X]) # add bias term
     return X @ self.theta
   
 if __name__ == "__main__":
